@@ -1,0 +1,14 @@
+[
+  {
+    "id": "reel001",
+    "file": "content/media/reel001.mp4",
+    "type": "video",
+    "caption": "Dein Beispiel-Caption hier ✨ #dardaniadesign",
+    "platforms": ["instagram", "facebook", "tiktok"],
+    "last_posted": {
+      "instagram": null,
+      "facebook": null,
+      "tiktok": null
+    }
+  }
+]

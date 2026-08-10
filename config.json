@@ -1,0 +1,9 @@
+{
+  "rotation_days": {
+    "instagram": 10,
+    "facebook": 10,
+    "tiktok": 14
+  },
+  "github_repo": "DEIN_GITHUB_USERNAME/dardania-social-recycler",
+  "github_branch": "main"
+}
