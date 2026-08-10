@@ -3,12 +3,15 @@
     "id": "reel001",
     "file": "content/media/reel001.mp4",
     "type": "video",
-    "caption": "Logo e vjetër vs. logo e re ✨ Çdo redesign fillon me një histori. #dardaniadesign #logodesign #rebranding #graphicdesign",
+    "caption": "Logo e vjetër vs. logo e re ✨ Çdo redesign fillon me një histori.",
+    "hashtags": "#dardaniadesign #logodesign #rebranding #graphicdesign",
     "platforms": [
       "instagram",
       "facebook",
       "tiktok"
     ],
+    "scheduled_date": null,
+    "one_time": false,
     "last_posted": {
       "instagram": "2026-08-10T12:33:10.893642+00:00",
       "facebook": null,
