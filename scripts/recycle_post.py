@@ -2,7 +2,9 @@
 Dardania Social Recycler
 -------------------------
 Postet automatisch bereits vorhandene Reels/Bilder erneut auf
-Instagram, Facebook und TikTok, in einem festen Rhythmus.
+Instagram, Facebook und TikTok. Jede Plattform hat pro Post ihr
+eigenes Startdatum, ihren eigenen Rhythmus und kann unabhängig
+pausiert/aktiviert werden (siehe content/library.json -> platforms).
 
 Läuft normalerweise über GitHub Actions (siehe .github/workflows/recycle.yml),
 kann aber auch lokal getestet werden mit: python scripts/recycle_post.py
@@ -38,14 +40,12 @@ def save_json(path, data):
 
 
 def raw_url(config, relative_path):
-    """Baut die öffentlich erreichbare raw.githubusercontent.com URL für eine Datei im Repo."""
     repo = config["github_repo"]
     branch = config["github_branch"]
     return f"https://raw.githubusercontent.com/{repo}/{branch}/{relative_path}"
 
 
 def full_caption(item):
-    """Caption + Hashtags zusammensetzen (Hashtags sind ein eigenes Feld, für Übersicht im Dashboard)."""
     caption = item.get("caption", "")
     hashtags = item.get("hashtags", "")
     if hashtags:
@@ -53,15 +53,18 @@ def full_caption(item):
     return caption
 
 
-def is_due(item, platform, rotation_days):
-    last_posted_iso = item["last_posted"].get(platform)
-
-    # Einmalige Posts: nach dem ersten Mal nie wieder fällig
-    if item.get("one_time") and last_posted_iso:
+def is_due(platform_cfg):
+    if not platform_cfg or not platform_cfg.get("enabled"):
         return False
 
-    # Geplantes Startdatum: vor diesem Datum nie fällig, egal was last_posted sagt
-    scheduled = item.get("scheduled_date")
+    last_posted_iso = platform_cfg.get("last_posted")
+
+    # Einmalige Posts: nach dem ersten Mal nie wieder fällig
+    if platform_cfg.get("one_time") and last_posted_iso:
+        return False
+
+    # Eigenes Startdatum dieser Plattform: vor diesem Datum nie fällig
+    scheduled = platform_cfg.get("scheduled_date")
     if scheduled:
         scheduled_dt = datetime.fromisoformat(scheduled).replace(tzinfo=timezone.utc)
         if datetime.now(timezone.utc) < scheduled_dt:
@@ -71,23 +74,24 @@ def is_due(item, platform, rotation_days):
         return True
 
     last = datetime.fromisoformat(last_posted_iso)
+    rotation_days = platform_cfg.get("rotation_days", 10)
     return datetime.now(timezone.utc) - last >= timedelta(days=rotation_days)
 
 
-def pick_due_item(library, platform, rotation_days):
-    """Wählt den Eintrag, der für diese Plattform am längsten nicht gepostet wurde und fällig ist."""
-    candidates = [
-        item for item in library
-        if platform in item["platforms"] and is_due(item, platform, rotation_days)
-    ]
+def pick_due_item(library, platform):
+    candidates = []
+    for item in library:
+        cfg = (item.get("platforms") or {}).get(platform)
+        if cfg and is_due(cfg):
+            candidates.append(item)
     if not candidates:
         return None
-    candidates.sort(key=lambda i: i["last_posted"].get(platform) or "")
+    candidates.sort(key=lambda i: i["platforms"][platform].get("last_posted") or "")
     return candidates[0]
 
 
 def mark_posted(item, platform):
-    item["last_posted"][platform] = datetime.now(timezone.utc).isoformat()
+    item["platforms"][platform]["last_posted"] = datetime.now(timezone.utc).isoformat()
 
 
 def log_history(entry):
@@ -162,7 +166,7 @@ def post_to_tiktok(item, media_url, caption, config):
     body = {
         "post_info": {
             "title": caption,
-            "privacy_level": "SELF_ONLY",  # Solange die TikTok-App nicht geprüft ist, nur privater Entwurf möglich.
+            "privacy_level": "SELF_ONLY",
             "disable_duet": False,
             "disable_comment": False,
             "disable_stitch": False,
@@ -189,8 +193,7 @@ def main():
     any_posted = False
 
     for platform, handler in platform_handlers.items():
-        rotation_days = config["rotation_days"][platform]
-        item = pick_due_item(library, platform, rotation_days)
+        item = pick_due_item(library, platform)
         if not item:
             print(f"[{platform}] Nichts fällig.")
             continue
