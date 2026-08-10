@@ -1,5 +1,5 @@
 {
-  "rotation_days": {
+  "rotation_days_default": {
     "instagram": 10,
     "facebook": 10,
     "tiktok": 14
