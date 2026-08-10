@@ -5,15 +5,28 @@
     "type": "video",
     "caption": "Logo e vjetër vs. logo e re ✨ Çdo redesign fillon me një histori.",
     "hashtags": "#dardaniadesign #logodesign #rebranding #graphicdesign",
-    "platforms": [
-      "facebook"
-    ],
-    "scheduled_date": "2026-08-12",
-    "one_time": false,
-    "last_posted": {
-      "instagram": "2026-08-10T12:33:10.893642+00:00",
-      "facebook": null,
-      "tiktok": null
+    "platforms": {
+      "instagram": {
+        "enabled": true,
+        "scheduled_date": null,
+        "rotation_days": 10,
+        "one_time": false,
+        "last_posted": "2026-08-10T12:33:10.893642+00:00"
+      },
+      "facebook": {
+        "enabled": true,
+        "scheduled_date": "2026-08-12",
+        "rotation_days": 10,
+        "one_time": false,
+        "last_posted": null
+      },
+      "tiktok": {
+        "enabled": true,
+        "scheduled_date": null,
+        "rotation_days": 14,
+        "one_time": false,
+        "last_posted": null
+      }
     }
   }
 ]
