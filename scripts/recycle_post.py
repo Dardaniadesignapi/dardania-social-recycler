@@ -19,11 +19,14 @@ import requests
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIBRARY_PATH = os.path.join(ROOT, "content", "library.json")
 CONFIG_PATH = os.path.join(ROOT, "config.json")
+HISTORY_PATH = os.path.join(ROOT, "content", "history.json")
 
 GRAPH_VERSION = "v21.0"
 
 
-def load_json(path):
+def load_json(path, default=None):
+    if not os.path.exists(path):
+        return default if default is not None else []
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -41,9 +44,32 @@ def raw_url(config, relative_path):
     return f"https://raw.githubusercontent.com/{repo}/{branch}/{relative_path}"
 
 
-def is_due(last_posted_iso, rotation_days):
+def full_caption(item):
+    """Caption + Hashtags zusammensetzen (Hashtags sind ein eigenes Feld, für Übersicht im Dashboard)."""
+    caption = item.get("caption", "")
+    hashtags = item.get("hashtags", "")
+    if hashtags:
+        return f"{caption}\n\n{hashtags}"
+    return caption
+
+
+def is_due(item, platform, rotation_days):
+    last_posted_iso = item["last_posted"].get(platform)
+
+    # Einmalige Posts: nach dem ersten Mal nie wieder fällig
+    if item.get("one_time") and last_posted_iso:
+        return False
+
+    # Geplantes Startdatum: vor diesem Datum nie fällig, egal was last_posted sagt
+    scheduled = item.get("scheduled_date")
+    if scheduled:
+        scheduled_dt = datetime.fromisoformat(scheduled).replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) < scheduled_dt:
+            return False
+
     if not last_posted_iso:
         return True
+
     last = datetime.fromisoformat(last_posted_iso)
     return datetime.now(timezone.utc) - last >= timedelta(days=rotation_days)
 
@@ -52,11 +78,10 @@ def pick_due_item(library, platform, rotation_days):
     """Wählt den Eintrag, der für diese Plattform am längsten nicht gepostet wurde und fällig ist."""
     candidates = [
         item for item in library
-        if platform in item["platforms"] and is_due(item["last_posted"].get(platform), rotation_days)
+        if platform in item["platforms"] and is_due(item, platform, rotation_days)
     ]
     if not candidates:
         return None
-    # Ältester zuerst (None = noch nie gepostet, hat Priorität)
     candidates.sort(key=lambda i: i["last_posted"].get(platform) or "")
     return candidates[0]
 
@@ -65,18 +90,21 @@ def mark_posted(item, platform):
     item["last_posted"][platform] = datetime.now(timezone.utc).isoformat()
 
 
+def log_history(entry):
+    history = load_json(HISTORY_PATH, default=[])
+    history.append(entry)
+    save_json(HISTORY_PATH, history)
+
+
 # ---------- INSTAGRAM ----------
 
-def post_to_instagram(item, media_url, config):
+def post_to_instagram(item, media_url, caption, config):
     token = os.environ["IG_ACCESS_TOKEN"]
     ig_user_id = os.environ["IG_USER_ID"]
 
     is_video = item["type"] == "video"
     create_url = f"https://graph.instagram.com/{GRAPH_VERSION}/{ig_user_id}/media"
-    payload = {
-        "caption": item["caption"],
-        "access_token": token,
-    }
+    payload = {"caption": caption, "access_token": token}
     if is_video:
         payload["media_type"] = "REELS"
         payload["video_url"] = media_url
@@ -87,7 +115,6 @@ def post_to_instagram(item, media_url, config):
     resp.raise_for_status()
     container_id = resp.json()["id"]
 
-    # Auf Fertigstellung warten (nur bei Video nötig)
     if is_video:
         status_url = f"https://graph.instagram.com/{GRAPH_VERSION}/{container_id}"
         for _ in range(20):
@@ -107,16 +134,16 @@ def post_to_instagram(item, media_url, config):
 
 # ---------- FACEBOOK ----------
 
-def post_to_facebook(item, media_url, config):
+def post_to_facebook(item, media_url, caption, config):
     token = os.environ["FB_PAGE_ACCESS_TOKEN"]
     page_id = os.environ["FB_PAGE_ID"]
 
     if item["type"] == "video":
         url = f"https://graph-video.facebook.com/{GRAPH_VERSION}/{page_id}/videos"
-        payload = {"file_url": media_url, "description": item["caption"], "access_token": token}
+        payload = {"file_url": media_url, "description": caption, "access_token": token}
     else:
         url = f"https://graph.facebook.com/{GRAPH_VERSION}/{page_id}/photos"
-        payload = {"url": media_url, "caption": item["caption"], "access_token": token}
+        payload = {"url": media_url, "caption": caption, "access_token": token}
 
     resp = requests.post(url, data=payload, timeout=120)
     resp.raise_for_status()
@@ -125,7 +152,7 @@ def post_to_facebook(item, media_url, config):
 
 # ---------- TIKTOK ----------
 
-def post_to_tiktok(item, media_url, config):
+def post_to_tiktok(item, media_url, caption, config):
     token = os.environ["TIKTOK_ACCESS_TOKEN"]
     url = "https://open.tiktokapis.com/v2/post/publish/video/init/"
     headers = {
@@ -134,17 +161,13 @@ def post_to_tiktok(item, media_url, config):
     }
     body = {
         "post_info": {
-            "title": item["caption"],
-            "privacy_level": "SELF_ONLY",  # Wichtig: solange die App nicht von TikTok geprüft ist,
-                                            # ist nur SELF_ONLY (privater Entwurf) erlaubt.
+            "title": caption,
+            "privacy_level": "SELF_ONLY",  # Solange die TikTok-App nicht geprüft ist, nur privater Entwurf möglich.
             "disable_duet": False,
             "disable_comment": False,
             "disable_stitch": False,
         },
-        "source_info": {
-            "source": "PULL_FROM_URL",
-            "video_url": media_url,
-        },
+        "source_info": {"source": "PULL_FROM_URL", "video_url": media_url},
     }
     resp = requests.post(url, headers=headers, json=body, timeout=60)
     resp.raise_for_status()
@@ -154,8 +177,8 @@ def post_to_tiktok(item, media_url, config):
 # ---------- MAIN ----------
 
 def main():
-    config = load_json(CONFIG_PATH)
-    library = load_json(LIBRARY_PATH)
+    config = load_json(CONFIG_PATH, default={})
+    library = load_json(LIBRARY_PATH, default=[])
 
     platform_handlers = {
         "instagram": post_to_instagram,
@@ -173,16 +196,23 @@ def main():
             continue
 
         media_url = raw_url(config, item["file"])
+        caption = full_caption(item)
         try:
-            handler(item, media_url, config)
+            handler(item, media_url, caption, config)
             mark_posted(item, platform)
+            log_history({
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "platform": platform,
+                "id": item["id"],
+                "caption": caption,
+            })
             any_posted = True
         except Exception as e:
             print(f"[{platform}] FEHLER beim Posten von {item['id']}: {e}", file=sys.stderr)
 
     if any_posted:
         save_json(LIBRARY_PATH, library)
-        print("library.json aktualisiert.")
+        print("library.json und history.json aktualisiert.")
     else:
         print("Keine Änderungen.")
 
