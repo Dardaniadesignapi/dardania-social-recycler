@@ -145,7 +145,8 @@ def post_to_instagram(item, media_url, caption, config):
         payload["image_url"] = media_url
 
     resp = requests.post(create_url, data=payload, timeout=60)
-    resp.raise_for_status()
+    if not resp.ok:
+        raise RuntimeError(f"Instagram API Fehler beim Erstellen ({resp.status_code}): {resp.text}")
     container_id = resp.json()["id"]
 
     if is_video:
@@ -179,7 +180,8 @@ def post_to_facebook(item, media_url, caption, config):
         payload = {"url": media_url, "caption": caption, "access_token": token}
 
     resp = requests.post(url, data=payload, timeout=120)
-    resp.raise_for_status()
+    if not resp.ok:
+        raise RuntimeError(f"Facebook API Fehler ({resp.status_code}): {resp.text}")
     print(f"[Facebook] Gepostet: {resp.json()}")
 
 
@@ -203,7 +205,8 @@ def post_to_tiktok(item, media_url, caption, config):
         "source_info": {"source": "PULL_FROM_URL", "video_url": media_url},
     }
     resp = requests.post(url, headers=headers, json=body, timeout=60)
-    resp.raise_for_status()
+    if not resp.ok:
+        raise RuntimeError(f"TikTok API Fehler ({resp.status_code}): {resp.text}")
     print(f"[TikTok] Gepostet (als Entwurf, da App noch nicht geprüft): {resp.json()}")
 
 
