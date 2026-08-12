@@ -31,5 +31,22 @@
         "last_posted": null
       }
     }
+  },
+  {
+    "id": "post_1786544292889",
+    "file": "content/media/1786544291647_IMG-20260810-WA0037.jpg",
+    "type": "image",
+    "caption": "A ke nevojë për një markë që duket profesionale? Ne krijojmë logo dhe web-faqe për biznese si i yti. Na kontakto sot.",
+    "hashtags": "#kosovo #diaspora #biznes #smallbusiness #dizajnkosove #prishtina #prizren",
+    "platforms": {
+      "instagram": {
+        "enabled": true,
+        "scheduled_date": null,
+        "post_time": "00:00",
+        "rotation_days": 10,
+        "one_time": false,
+        "last_posted": null
+      }
+    }
   }
 ]
