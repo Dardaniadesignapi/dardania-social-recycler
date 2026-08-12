@@ -62,7 +62,10 @@ def full_caption(item):
 
 
 def is_time_slot_match(post_time_str):
-    """Prüft, ob JETZT (Schweizer Zeit) im selben 15-Minuten-Fenster liegt wie die gewünschte Uhrzeit."""
+    """Prüft, ob JETZT (Schweizer Zeit) die gewünschte Uhrzeit bereits erreicht ist.
+    Bewusst grosszügig: einmal erreicht, bleibt es für den Rest des Tages 'wahr' -
+    ausgelöst wird trotzdem nur einmal, weil last_posted danach sofort gesetzt wird
+    und der Rhythmus (rotation_days) ein erneutes Auslösen am selben Tag verhindert."""
     if not post_time_str:
         post_time_str = "10:00"
     try:
@@ -71,9 +74,9 @@ def is_time_slot_match(post_time_str):
         hh, mm = 10, 0
 
     now_local = datetime.now(SWISS_TZ)
-    desired_bucket = (hh, (mm // TIME_BUCKET_MINUTES) * TIME_BUCKET_MINUTES)
-    current_bucket = (now_local.hour, (now_local.minute // TIME_BUCKET_MINUTES) * TIME_BUCKET_MINUTES)
-    return desired_bucket == current_bucket
+    desired_minutes = hh * 60 + mm
+    now_minutes = now_local.hour * 60 + now_local.minute
+    return now_minutes >= desired_minutes
 
 
 def is_due(platform_cfg):
