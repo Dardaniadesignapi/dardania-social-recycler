@@ -2,8 +2,10 @@ name: Content Recycling
 
 on:
   schedule:
-    - cron: "0 9 * * *"
-  workflow_dispatch: {}
+    # Alle 15 Minuten - das Skript selbst entscheidet, ob wirklich etwas fällig ist
+    # (Datum + Rhythmus + gewähltes Zeitfenster in Schweizer Zeit).
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}  # erlaubt manuelles Auslösen über den "Run workflow"-Button
 
 jobs:
   recycle:
