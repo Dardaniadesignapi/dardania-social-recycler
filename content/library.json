@@ -11,21 +11,24 @@
         "scheduled_date": null,
         "rotation_days": 10,
         "one_time": false,
-        "last_posted": "2026-08-10T12:33:10.893642+00:00"
+        "last_posted": "2026-08-10T12:33:10.893642+00:00",
+        "post_time": "10:00"
       },
       "facebook": {
         "enabled": true,
         "scheduled_date": "2026-08-12",
         "rotation_days": 10,
         "one_time": false,
-        "last_posted": null
+        "last_posted": null,
+        "post_time": "10:00"
       },
       "tiktok": {
         "enabled": false,
         "scheduled_date": null,
         "rotation_days": 14,
         "one_time": false,
-        "last_posted": null
+        "last_posted": null,
+        "post_time": "10:00"
       }
     }
   }
