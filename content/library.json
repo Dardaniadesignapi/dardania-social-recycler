@@ -7,7 +7,7 @@
     "hashtags": "#dardaniadesign #logodesign #rebranding #graphicdesign",
     "platforms": {
       "instagram": {
-        "enabled": false,
+        "enabled": true,
         "scheduled_date": null,
         "post_time": "10:00",
         "rotation_days": 10,
