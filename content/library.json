@@ -31,38 +31,5 @@
         "last_posted": null
       }
     }
-  },
-  {
-    "id": "test_image_fb",
-    "file": "content/media/test_image.jpg",
-    "type": "image",
-    "caption": "Test-Post zur Fehlerdiagnose",
-    "hashtags": "",
-    "platforms": {
-      "instagram": {
-        "enabled": false,
-        "scheduled_date": null,
-        "post_time": "10:00",
-        "rotation_days": 999,
-        "one_time": true,
-        "last_posted": null
-      },
-      "facebook": {
-        "enabled": true,
-        "scheduled_date": null,
-        "post_time": "00:00",
-        "rotation_days": 999,
-        "one_time": true,
-        "last_posted": null
-      },
-      "tiktok": {
-        "enabled": false,
-        "scheduled_date": null,
-        "post_time": "10:00",
-        "rotation_days": 999,
-        "one_time": true,
-        "last_posted": null
-      }
-    }
   }
 ]
