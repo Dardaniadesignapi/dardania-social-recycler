@@ -15,7 +15,7 @@
         "last_posted": "2026-08-10T12:33:10.893642+00:00"
       },
       "facebook": {
-        "enabled": true,
+        "enabled": false,
         "scheduled_date": null,
         "post_time": "00:00",
         "rotation_days": 10,
