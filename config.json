@@ -5,5 +5,6 @@
     "tiktok": 14
   },
   "github_repo": "Dardaniadesignapi/dardania-social-recycler",
-  "github_branch": "main"
+  "github_branch": "main",
+  "post_time_default": "10:00"
 }
