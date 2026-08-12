@@ -3,11 +3,12 @@ Dardania Social Recycler
 -------------------------
 Postet automatisch bereits vorhandene Reels/Bilder erneut auf
 Instagram, Facebook und TikTok. Jede Plattform hat pro Post ihr
-eigenes Startdatum, ihren eigenen Rhythmus und kann unabhängig
-pausiert/aktiviert werden (siehe content/library.json -> platforms).
+eigenes Startdatum, ihre eigene Uhrzeit (Schweizer Zeit) und ihren
+eigenen Rhythmus, und kann unabhängig pausiert/aktiviert werden
+(siehe content/library.json -> platforms).
 
-Läuft normalerweise über GitHub Actions (siehe .github/workflows/recycle.yml),
-kann aber auch lokal getestet werden mit: python scripts/recycle_post.py
+Läuft alle 15 Minuten über GitHub Actions (siehe .github/workflows/recycle.yml),
+damit die gewählte Uhrzeit zuverlässig getroffen wird.
 """
 
 import json
@@ -18,12 +19,19 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:  # Python <3.9 Fallback, sollte auf GitHub Actions nicht nötig sein
+    from backports.zoneinfo import ZoneInfo
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIBRARY_PATH = os.path.join(ROOT, "content", "library.json")
 CONFIG_PATH = os.path.join(ROOT, "config.json")
 HISTORY_PATH = os.path.join(ROOT, "content", "history.json")
 
 GRAPH_VERSION = "v21.0"
+SWISS_TZ = ZoneInfo("Europe/Zurich")
+TIME_BUCKET_MINUTES = 15  # muss zum Cron-Intervall in recycle.yml passen
 
 
 def load_json(path, default=None):
@@ -53,6 +61,21 @@ def full_caption(item):
     return caption
 
 
+def is_time_slot_match(post_time_str):
+    """Prüft, ob JETZT (Schweizer Zeit) im selben 15-Minuten-Fenster liegt wie die gewünschte Uhrzeit."""
+    if not post_time_str:
+        post_time_str = "10:00"
+    try:
+        hh, mm = map(int, post_time_str.split(":"))
+    except ValueError:
+        hh, mm = 10, 0
+
+    now_local = datetime.now(SWISS_TZ)
+    desired_bucket = (hh, (mm // TIME_BUCKET_MINUTES) * TIME_BUCKET_MINUTES)
+    current_bucket = (now_local.hour, (now_local.minute // TIME_BUCKET_MINUTES) * TIME_BUCKET_MINUTES)
+    return desired_bucket == current_bucket
+
+
 def is_due(platform_cfg):
     if not platform_cfg or not platform_cfg.get("enabled"):
         return False
@@ -70,12 +93,15 @@ def is_due(platform_cfg):
         if datetime.now(timezone.utc) < scheduled_dt:
             return False
 
-    if not last_posted_iso:
-        return True
+    # Datum grundsätzlich fällig?
+    if last_posted_iso:
+        last = datetime.fromisoformat(last_posted_iso)
+        rotation_days = platform_cfg.get("rotation_days", 10)
+        if datetime.now(timezone.utc) - last < timedelta(days=rotation_days):
+            return False
 
-    last = datetime.fromisoformat(last_posted_iso)
-    rotation_days = platform_cfg.get("rotation_days", 10)
-    return datetime.now(timezone.utc) - last >= timedelta(days=rotation_days)
+    # Zusätzlich: nur im passenden Zeitfenster (Schweizer Zeit) wirklich posten
+    return is_time_slot_match(platform_cfg.get("post_time"))
 
 
 def pick_due_item(library, platform):
@@ -195,7 +221,6 @@ def main():
     for platform, handler in platform_handlers.items():
         item = pick_due_item(library, platform)
         if not item:
-            print(f"[{platform}] Nichts fällig.")
             continue
 
         media_url = raw_url(config, item["file"])
@@ -217,7 +242,7 @@ def main():
         save_json(LIBRARY_PATH, library)
         print("library.json und history.json aktualisiert.")
     else:
-        print("Keine Änderungen.")
+        print("Kein passendes Zeitfenster / nichts fällig in diesem Lauf.")
 
 
 if __name__ == "__main__":
